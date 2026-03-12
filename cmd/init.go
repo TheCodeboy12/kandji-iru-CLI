@@ -28,7 +28,7 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Create the config file",
 	Long: `Create the config file so you can edit it with your API token and base URL.
-Default path: ~/.kandji.yaml (or use --config to specify a path).
+Default path: ~/.config/kandji-iru-cli/config.yaml (or use --config to specify a path).
 After running init, edit the file and add your token and base-url (or subdomain).`,
 	RunE: runInit,
 }
@@ -51,15 +51,26 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("create config directory: %w", err)
 	}
 
-	if _, err := os.Stat(path); err == nil && !initForce {
-		return fmt.Errorf("config file already exists: %s\nUse --force to overwrite", path)
+	exists := false
+	if _, err := os.Stat(path); err == nil {
+		exists = true
+	}
+
+	if exists && !initForce {
+		fmt.Fprintf(os.Stderr, "Config file already exists: %s\n", path)
+		fmt.Fprintln(os.Stderr, "Edit it to update your token and base-url (or subdomain). Use --force to overwrite with the default template.")
+		return nil
 	}
 
 	if err := os.WriteFile(path, []byte(configTemplate), 0600); err != nil {
 		return fmt.Errorf("write config file: %w", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "Created config file: %s\n", path)
+	if exists {
+		fmt.Fprintf(os.Stderr, "Overwrote config file: %s\n", path)
+	} else {
+		fmt.Fprintf(os.Stderr, "Created config file: %s\n", path)
+	}
 	fmt.Fprintln(os.Stderr, "Edit it and add your token and base-url (or subdomain), then run any CLI command.")
 	return nil
 }
@@ -73,5 +84,5 @@ func configPath() string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(home, ".kandji.yaml")
+	return filepath.Join(home, ".config", "kandji-iru-cli", "config.yaml")
 }

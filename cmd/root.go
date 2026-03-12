@@ -4,8 +4,10 @@ Copyright © 2026 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -41,7 +43,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kandji.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config/kandji-iru-cli/config.yaml)")
 	rootCmd.PersistentFlags().String("base-url", "", "Kandji API base URL (e.g. https://your-tenant.clients.us-1.kandji.io)")
 	rootCmd.PersistentFlags().String("subdomain", "", "Kandji tenant subdomain (used to build base URL if --base-url is not set)")
 	rootCmd.PersistentFlags().String("token", "", "Kandji API bearer token")
@@ -67,10 +69,7 @@ func initConfig() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		viper.AddConfigPath(home)
-		viper.AddConfigPath(".")
-		viper.SetConfigType("yaml")
-		viper.SetConfigName(".kandji")
+		viper.SetConfigFile(filepath.Join(home, ".config", "kandji-iru-cli", "config.yaml"))
 	}
 
 	viper.SetEnvPrefix("KANDJI")
@@ -78,10 +77,19 @@ func initConfig() {
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_", ".", "_"))
 
 	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+		// Config file or directory not created yet (e.g. before running "init") — not fatal.
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			return
 		}
+		if errors.Is(err, os.ErrNotExist) {
+			return
+		}
+		var pathErr *os.PathError
+		if errors.As(err, &pathErr) && errors.Is(pathErr.Err, os.ErrNotExist) {
+			return
+		}
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }
 
@@ -92,7 +100,7 @@ func validateConfig() error {
 	}
 	token := viper.GetString("token")
 	if token == "" {
-		return fmt.Errorf("API token not configured\nSet KANDJI_TOKEN or use --token or add to config file (~/.kandji.yaml)")
+		return fmt.Errorf("API token not configured\nSet KANDJI_TOKEN or use --token or add to config file (~/.config/kandji-iru-cli/config.yaml)")
 	}
 
 	baseURL := viper.GetString("base_url")
