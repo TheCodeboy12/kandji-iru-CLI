@@ -86,6 +86,51 @@ func (c *Client) GetDevice(ctx context.Context, deviceID string) (*Device, error
 	return &out, nil
 }
 
+// GetDeviceDetails calls GET /api/v1/devices/{device_id}/details (full device details).
+func (c *Client) GetDeviceDetails(ctx context.Context, deviceID string) ([]byte, error) {
+	path := apiPathPrefix + "/devices/" + url.PathEscape(deviceID) + "/details"
+	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get device details: %w", err)
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("get device details: %w", err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("get device details read: %w", err)
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("device not found: %s", deviceID)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("get device details: %s: %s", resp.Status, string(body))
+	}
+	return body, nil
+}
+
+// DeviceAction sends POST /api/v1/devices/{device_id}/action/{action} with optional body.
+// action is e.g. "lock", "restart", "blankpush", "dailycheckin", "renewmdmprofile", "setname", etc.
+func (c *Client) DeviceAction(ctx context.Context, deviceID, action string, body io.Reader) (int, []byte, error) {
+	path := apiPathPrefix + "/devices/" + url.PathEscape(deviceID) + "/action/" + url.PathEscape(action)
+	req, err := c.newRequest(ctx, http.MethodPost, path, body)
+	if err != nil {
+		return 0, nil, fmt.Errorf("device action %s: %w", action, err)
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return 0, nil, fmt.Errorf("device action %s: %w", action, err)
+	}
+	defer resp.Body.Close()
+	out, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return resp.StatusCode, out, nil
+	}
+	return resp.StatusCode, out, fmt.Errorf("device action %s: %s: %s", action, resp.Status, string(out))
+}
+
 func (c *Client) newRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
 	u := c.baseURL + path
 	req, err := http.NewRequestWithContext(ctx, method, u, body)
