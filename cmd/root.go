@@ -86,6 +86,10 @@ func initConfig() {
 }
 
 func validateConfig() error {
+	// Skip validation for init so the config file can be created without credentials.
+	if len(os.Args) >= 2 && os.Args[1] == "init" {
+		return nil
+	}
 	token := viper.GetString("token")
 	if token == "" {
 		return fmt.Errorf("API token not configured\nSet KANDJI_TOKEN or use --token or add to config file (~/.kandji.yaml)")

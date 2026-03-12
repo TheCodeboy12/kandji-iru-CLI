@@ -23,6 +23,17 @@ The CLI reads configuration from (in order of precedence):
 2. **Environment** — `KANDJI_TOKEN`, `KANDJI_BASE_URL` or `KANDJI_SUBDOMAIN`
 3. **Config file** — `~/.kandji.yaml` (or `--config path/to/file`)
 
+### Create the config file
+
+Run once to create the config file, then edit it with your token and base URL:
+
+```bash
+kandji-iru-cli init
+# Creates ~/.kandji.yaml; edit it and add your token and base-url (or subdomain)
+```
+
+Use `--config path/to/file` to create a config at a different path, or `--force` to overwrite an existing file.
+
 ### Config file example (`~/.kandji.yaml`)
 
 ```yaml
