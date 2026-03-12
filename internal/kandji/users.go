@@ -38,17 +38,29 @@ type DirectoryUserListResponse struct {
 }
 
 // ListDirectoryUsersOptions holds query params for list users.
+// ExtraParams are merged last (same key overrides).
 type ListDirectoryUsersOptions struct {
 	Email         string
 	ID            string
 	IntegrationID string
 	Archived      string
 	Cursor        string
+	ExtraParams   map[string]string
 }
 
 // QueryValues returns url.Values for list users.
+// ExtraParams are applied first; then built-in flags (so --archived etc. take precedence and are not overwritten by --params).
 func (o ListDirectoryUsersOptions) QueryValues() url.Values {
 	v := url.Values{}
+	for k, val := range o.ExtraParams {
+		if val == "" {
+			continue
+		}
+		if k == "archived" {
+			val = normalizeBoolParam(val)
+		}
+		v.Set(k, val)
+	}
 	if o.Email != "" {
 		v.Set("email", o.Email)
 	}
@@ -59,12 +71,23 @@ func (o ListDirectoryUsersOptions) QueryValues() url.Values {
 		v.Set("integration_id", o.IntegrationID)
 	}
 	if o.Archived != "" {
-		v.Set("archived", o.Archived)
+		v.Set("archived", normalizeBoolParam(o.Archived))
 	}
 	if o.Cursor != "" {
 		v.Set("cursor", o.Cursor)
 	}
 	return v
+}
+
+// normalizeBoolParam returns "true" or "false" for API params that expect a boolean string (e.g. archived).
+func normalizeBoolParam(s string) string {
+	switch s {
+	case "true", "True", "TRUE", "1":
+		return "true"
+	case "false", "False", "FALSE", "0":
+		return "false"
+	}
+	return s
 }
 
 // ListUsers calls GET /api/v1/users.

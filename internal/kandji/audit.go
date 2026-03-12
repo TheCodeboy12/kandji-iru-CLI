@@ -31,12 +31,14 @@ type AuditEventsResponse struct {
 }
 
 // ListAuditEventsOptions holds query params for audit events.
+// ExtraParams are merged last (same key overrides).
 type ListAuditEventsOptions struct {
-	Limit     int
-	SortBy    string
-	StartDate string
-	EndDate   string
-	Cursor    string
+	Limit       int
+	SortBy      string
+	StartDate   string
+	EndDate     string
+	Cursor      string
+	ExtraParams map[string]string
 }
 
 // QueryValues returns url.Values for the audit events request.
@@ -56,6 +58,11 @@ func (o ListAuditEventsOptions) QueryValues() url.Values {
 	}
 	if o.Cursor != "" {
 		v.Set("cursor", o.Cursor)
+	}
+	for k, val := range o.ExtraParams {
+		if val != "" {
+			v.Set(k, val)
+		}
 	}
 	return v
 }

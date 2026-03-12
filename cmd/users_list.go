@@ -24,12 +24,14 @@ func init() {
 	usersListCmd.Flags().String("integration-id", "", "Filter by integration UUID")
 	usersListCmd.Flags().String("archived", "", "Filter archived: true or false")
 	usersListCmd.Flags().String("cursor", "", "Pagination cursor")
+	usersListCmd.Flags().String("params", "", "Extra query params as JSON (e.g. {\"email\":\"@company.com\"}). Merges with/overrides flags.")
 
 	_ = viper.BindPFlag("users_list_email", usersListCmd.Flags().Lookup("email"))
 	_ = viper.BindPFlag("users_list_id", usersListCmd.Flags().Lookup("id"))
 	_ = viper.BindPFlag("users_list_integration_id", usersListCmd.Flags().Lookup("integration-id"))
 	_ = viper.BindPFlag("users_list_archived", usersListCmd.Flags().Lookup("archived"))
 	_ = viper.BindPFlag("users_list_cursor", usersListCmd.Flags().Lookup("cursor"))
+	_ = viper.BindPFlag("users_list_params", usersListCmd.Flags().Lookup("params"))
 }
 
 func runUsersList(cmd *cobra.Command, args []string) error {
@@ -43,6 +45,7 @@ func runUsersList(cmd *cobra.Command, args []string) error {
 		IntegrationID: viper.GetString("users_list_integration_id"),
 		Archived:      viper.GetString("users_list_archived"),
 		Cursor:        viper.GetString("users_list_cursor"),
+		ExtraParams:   parseExtraParams(viper.GetString("users_list_params")),
 	}
 
 	switch outputFormat() {

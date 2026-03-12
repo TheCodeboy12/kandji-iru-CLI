@@ -24,12 +24,14 @@ func init() {
 	blueprintsListCmd.Flags().String("name", "", "Filter by name (containing)")
 	blueprintsListCmd.Flags().Int("limit", 0, "Results per page")
 	blueprintsListCmd.Flags().Int("offset", 0, "Starting index")
+	blueprintsListCmd.Flags().String("params", "", "Extra query params as JSON (e.g. {\"name\":\"Engineering\"}). Merges with/overrides flags.")
 
 	_ = viper.BindPFlag("blueprints_list_id", blueprintsListCmd.Flags().Lookup("id"))
 	_ = viper.BindPFlag("blueprints_list_id_in", blueprintsListCmd.Flags().Lookup("id-in"))
 	_ = viper.BindPFlag("blueprints_list_name", blueprintsListCmd.Flags().Lookup("name"))
 	_ = viper.BindPFlag("blueprints_list_limit", blueprintsListCmd.Flags().Lookup("limit"))
 	_ = viper.BindPFlag("blueprints_list_offset", blueprintsListCmd.Flags().Lookup("offset"))
+	_ = viper.BindPFlag("blueprints_list_params", blueprintsListCmd.Flags().Lookup("params"))
 }
 
 func runBlueprintsList(cmd *cobra.Command, args []string) error {
@@ -38,11 +40,12 @@ func runBlueprintsList(cmd *cobra.Command, args []string) error {
 	client := kandji.New(baseURL, token)
 
 	opts := kandji.ListBlueprintsOptions{
-		ID:     viper.GetString("blueprints_list_id"),
-		IDIn:   viper.GetString("blueprints_list_id_in"),
-		Name:   viper.GetString("blueprints_list_name"),
-		Limit:  viper.GetInt("blueprints_list_limit"),
-		Offset: viper.GetInt("blueprints_list_offset"),
+		ID:          viper.GetString("blueprints_list_id"),
+		IDIn:        viper.GetString("blueprints_list_id_in"),
+		Name:        viper.GetString("blueprints_list_name"),
+		Limit:       viper.GetInt("blueprints_list_limit"),
+		Offset:      viper.GetInt("blueprints_list_offset"),
+		ExtraParams: parseExtraParams(viper.GetString("blueprints_list_params")),
 	}
 
 	switch outputFormat() {

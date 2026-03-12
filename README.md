@@ -46,6 +46,30 @@ subdomain: your-tenant
 
 For EU tenants, set `base-url` explicitly (e.g. `https://your-tenant.api.eu.kandji.io`).
 
+## Arbitrary query params (`--params`)
+
+Any list or GET endpoint that supports query parameters accepts `--params` with a JSON object. Param names must match the API (snake_case). These are merged with (and can override) the normal flags.
+
+**Endpoints that support `--params`:** `devices list`, `audit events list`, `users list`, `blueprints list`, `tags list`, `devices activity <id>`, `blueprint-routing activity`.
+
+```bash
+# Devices
+kandji-iru-cli devices list --params '{"serial_number":"ABC123"}' -o json
+kandji-iru-cli devices list --params '{"platform":"Mac","limit":5}' -o json
+
+# Audit events
+kandji-iru-cli audit events list --params '{"limit":100,"sort_by":"-occurred_at"}' -o json
+
+# Users, blueprints, tags
+kandji-iru-cli users list --params '{"email":"@company.com"}' -o json
+kandji-iru-cli blueprints list --params '{"name":"Engineering"}' -o json
+kandji-iru-cli tags list --params '{"search":"eng"}' -o json
+
+# Device activity, blueprint-routing activity
+kandji-iru-cli devices activity <device_id> --params '{"limit":50}' -o json
+kandji-iru-cli blueprint-routing activity --params '{"limit":100}' -o json
+```
+
 ## Pagination
 
 List commands that return paged results will show a **next (and previous) page hint** on stderr when more data is available, so table output stays clean and scripts can ignore stderr.
@@ -98,6 +122,10 @@ kandji-iru-cli devices list
 
 # List devices as JSON
 kandji-iru-cli devices list -o json
+
+# List with arbitrary query params (JSON); param names must match API (snake_case, e.g. serial_number)
+kandji-iru-cli devices list --params '{"serial_number":"ABC123"}' -o json
+kandji-iru-cli devices list --params '{"platform":"Mac","limit":10}' -o json
 
 # Get a device and its full details
 kandji-iru-cli devices get <device_id>

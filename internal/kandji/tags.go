@@ -17,8 +17,10 @@ type Tag struct {
 }
 
 // ListTagsOptions holds query params for list tags.
+// ExtraParams are merged last (same key overrides).
 type ListTagsOptions struct {
-	Search string
+	Search      string
+	ExtraParams map[string]string
 }
 
 // QueryValues returns url.Values for list tags.
@@ -26,6 +28,11 @@ func (o ListTagsOptions) QueryValues() url.Values {
 	v := url.Values{}
 	if o.Search != "" {
 		v.Set("search", o.Search)
+	}
+	for k, val := range o.ExtraParams {
+		if val != "" {
+			v.Set(k, val)
+		}
 	}
 	return v
 }

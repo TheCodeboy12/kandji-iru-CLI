@@ -6,6 +6,7 @@ import (
 )
 
 // ListDeviceOptions holds query parameters for GET /api/v1/devices/.
+// ExtraParams are merged into the query string; use any API query param names (e.g. serial_number).
 type ListDeviceOptions struct {
 	Limit        int
 	Offset       int
@@ -17,6 +18,8 @@ type ListDeviceOptions struct {
 	UserEmail    string
 	Platform     string
 	BlueprintID  string
+	// ExtraParams are arbitrary query params (JSON key → value). Merged after built-in flags; same key overrides.
+	ExtraParams map[string]string
 }
 
 // QueryValues returns url.Values for the list devices request.
@@ -51,6 +54,11 @@ func (o ListDeviceOptions) QueryValues() url.Values {
 	}
 	if o.BlueprintID != "" {
 		v.Set("blueprint_id", o.BlueprintID)
+	}
+	for k, val := range o.ExtraParams {
+		if val != "" {
+			v.Set(k, val)
+		}
 	}
 	return v
 }

@@ -19,12 +19,17 @@ var tagsListCmd = &cobra.Command{
 func init() {
 	tagsCmd.AddCommand(tagsListCmd)
 	tagsListCmd.Flags().String("search", "", "Search filter")
+	tagsListCmd.Flags().String("params", "", "Extra query params as JSON (e.g. {\"search\":\"eng\"}). Merges with/overrides flags.")
 	_ = viper.BindPFlag("tags_list_search", tagsListCmd.Flags().Lookup("search"))
+	_ = viper.BindPFlag("tags_list_params", tagsListCmd.Flags().Lookup("params"))
 }
 
 func runTagsList(cmd *cobra.Command, args []string) error {
 	client := kandji.New(viper.GetString("resolved_base_url"), viper.GetString("token"))
-	opts := kandji.ListTagsOptions{Search: viper.GetString("tags_list_search")}
+	opts := kandji.ListTagsOptions{
+		Search:      viper.GetString("tags_list_search"),
+		ExtraParams: parseExtraParams(viper.GetString("tags_list_params")),
+	}
 	if outputFormat() == "raw" {
 		body, err := client.ListTagsRaw(cmd.Context(), opts)
 		if err != nil {

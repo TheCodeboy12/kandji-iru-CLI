@@ -59,7 +59,9 @@ func init() {
 	devicesCmd.AddCommand(devicesStatusCmd)
 
 	devicesActivityCmd.Flags().Int("limit", 0, "Limit number of results")
+	devicesActivityCmd.Flags().String("params", "", "Extra query params as JSON (e.g. {\"limit\":50}). Merges with flags.")
 	_ = viper.BindPFlag("devices_activity_limit", devicesActivityCmd.Flags().Lookup("limit"))
+	_ = viper.BindPFlag("devices_activity_params", devicesActivityCmd.Flags().Lookup("params"))
 }
 
 func runDeviceInfo(subpath string) func(*cobra.Command, []string) error {
@@ -69,6 +71,11 @@ func runDeviceInfo(subpath string) func(*cobra.Command, []string) error {
 		if subpath == "activity" {
 			if l := viper.GetInt("devices_activity_limit"); l > 0 {
 				q.Set("limit", fmt.Sprintf("%d", l))
+			}
+			for k, v := range parseExtraParams(viper.GetString("devices_activity_params")) {
+				if v != "" {
+					q.Set(k, v)
+				}
 			}
 		}
 		body, err := client.GetDeviceJSON(cmd.Context(), args[0], subpath, q)

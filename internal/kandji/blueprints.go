@@ -34,12 +34,14 @@ type BlueprintListResponse struct {
 }
 
 // ListBlueprintsOptions holds query params for list blueprints.
+// ExtraParams are merged last (same key overrides).
 type ListBlueprintsOptions struct {
-	ID     string
-	IDIn   string
-	Name   string
-	Limit  int
-	Offset int
+	ID          string
+	IDIn        string
+	Name        string
+	Limit       int
+	Offset      int
+	ExtraParams map[string]string
 }
 
 // QueryValues returns url.Values for list blueprints.
@@ -59,6 +61,11 @@ func (o ListBlueprintsOptions) QueryValues() url.Values {
 	}
 	if o.Offset > 0 {
 		v.Set("offset", fmt.Sprintf("%d", o.Offset))
+	}
+	for k, val := range o.ExtraParams {
+		if val != "" {
+			v.Set(k, val)
+		}
 	}
 	return v
 }

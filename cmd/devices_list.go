@@ -30,6 +30,7 @@ func init() {
 	devicesListCmd.Flags().String("user-email", "", "Filter by user email")
 	devicesListCmd.Flags().String("platform", "", "Filter by platform (e.g. Mac, iPhone)")
 	devicesListCmd.Flags().String("blueprint-id", "", "Filter by blueprint ID")
+	devicesListCmd.Flags().String("params", "", "Extra query params as JSON (e.g. {\"serial_number\":\"ABC123\"}). Keys must match API (snake_case). Merges with/overrides flags.")
 
 	_ = viper.BindPFlag("devices_list_limit", devicesListCmd.Flags().Lookup("limit"))
 	_ = viper.BindPFlag("devices_list_offset", devicesListCmd.Flags().Lookup("offset"))
@@ -41,6 +42,7 @@ func init() {
 	_ = viper.BindPFlag("devices_list_user_email", devicesListCmd.Flags().Lookup("user-email"))
 	_ = viper.BindPFlag("devices_list_platform", devicesListCmd.Flags().Lookup("platform"))
 	_ = viper.BindPFlag("devices_list_blueprint_id", devicesListCmd.Flags().Lookup("blueprint-id"))
+	_ = viper.BindPFlag("devices_list_params", devicesListCmd.Flags().Lookup("params"))
 }
 
 func runDevicesList(cmd *cobra.Command, args []string) error {
@@ -59,6 +61,7 @@ func runDevicesList(cmd *cobra.Command, args []string) error {
 		UserEmail:    viper.GetString("devices_list_user_email"),
 		Platform:     viper.GetString("devices_list_platform"),
 		BlueprintID:  viper.GetString("devices_list_blueprint_id"),
+		ExtraParams:  parseExtraParams(viper.GetString("devices_list_params")),
 	}
 
 	switch outputFormat() {

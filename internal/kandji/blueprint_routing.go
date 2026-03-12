@@ -67,13 +67,10 @@ func (c *Client) UpdateBlueprintRouting(ctx context.Context, payload UpdateBluep
 }
 
 // GetBlueprintRoutingActivity calls GET /api/v1/blueprint-routing/activity.
-func (c *Client) GetBlueprintRoutingActivity(ctx context.Context, limit int) ([]byte, error) {
+// params can include limit and any other API query params.
+func (c *Client) GetBlueprintRoutingActivity(ctx context.Context, params url.Values) ([]byte, error) {
 	path := apiPathPrefix + "/blueprint-routing/activity"
-	v := url.Values{}
-	if limit > 0 {
-		v.Set("limit", fmt.Sprintf("%d", limit))
-	}
-	if q := v.Encode(); q != "" {
+	if q := params.Encode(); q != "" {
 		path += "?" + q
 	}
 	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
