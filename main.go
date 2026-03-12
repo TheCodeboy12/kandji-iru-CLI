@@ -3,7 +3,7 @@ Copyright © 2026 NAME HERE <EMAIL ADDRESS>
 */
 package main
 
-import "untitled/cmd"
+import "kandji-iru-cli/cmd"
 
 func main() {
 	cmd.Execute()
