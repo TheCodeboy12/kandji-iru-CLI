@@ -119,6 +119,46 @@ kandji-iru-cli --raw blueprints list
 kandji-iru-cli audit events list -o json --limit 10
 ```
 
+## Chaining commands
+
+The CLI does not read arguments from stdin. To use the output of one command as input to another, use **command substitution** `$(...)` or **xargs**, and use **`-o json`** so you can parse output (e.g. with [jq](https://jqlang.github.io/jq/)).
+
+**Get one device by user email:**
+```bash
+kandji-iru-cli devices get $(kandji-iru-cli devices list --user-email user@company.com -o json | jq -r '.[0].device_id')
+```
+
+**Run a command for every device matching a filter (e.g. send blank push to all Macs):**
+```bash
+kandji-iru-cli devices list --platform Mac -o json | jq -r '.[].device_id' | xargs -I {} kandji-iru-cli devices action {} blankpush
+```
+
+**Get full details for every device for a user (one JSON object per line):**
+```bash
+kandji-iru-cli devices list --user-email user@company.com -o json | jq -r '.[].device_id' | while read -r id; do kandji-iru-cli devices get "$id" -o json; done
+```
+
+**Update every device for a user (e.g. assign a blueprint):**
+```bash
+kandji-iru-cli devices list --user-email user@company.com -o json | jq -r '.[].device_id' | while read -r id; do kandji-iru-cli devices update "$id" --blueprint-id <blueprint_uuid>; done
+```
+
+**Add a note to every device in a blueprint:**
+```bash
+kandji-iru-cli devices list --blueprint-id <blueprint_uuid> -o json | jq -r '.[].device_id' | xargs -I {} kandji-iru-cli devices notes create {} --content "Deployed 2024-01-15"
+```
+
+**Extract fields from a list (e.g. device IDs only, or count):**
+```bash
+kandji-iru-cli devices list -o json | jq -r '.[].device_id'
+kandji-iru-cli devices list -o json | jq 'length'
+```
+
+**Chain other resources (e.g. list blueprints, then get first one):**
+```bash
+kandji-iru-cli blueprints list -o json | jq -r '.[0].id' | xargs kandji-iru-cli blueprints get
+```
+
 ## API reference
 
 The CLI follows the [Iru Endpoint Management API](https://api-docs.kandji.io/) (and the included Postman collection). Rate limit: 10,000 requests/hour per tenant.
