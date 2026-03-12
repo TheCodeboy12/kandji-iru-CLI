@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -25,6 +26,15 @@ func runBlueprintsGet(cmd *cobra.Command, args []string) error {
 	baseURL := viper.GetString("resolved_base_url")
 	token := viper.GetString("token")
 	client := kandji.New(baseURL, token)
+
+	if outputFormat() == "raw" {
+		body, err := client.GetBlueprintRaw(cmd.Context(), blueprintID)
+		if err != nil {
+			return fmt.Errorf("get blueprint: %w", err)
+		}
+		_, _ = os.Stdout.Write(body)
+		return nil
+	}
 
 	bp, err := client.GetBlueprint(cmd.Context(), blueprintID)
 	if err != nil {

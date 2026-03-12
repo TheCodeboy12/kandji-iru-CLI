@@ -96,6 +96,20 @@ func (c *Client) ListUsers(ctx context.Context, opts ListDirectoryUsersOptions) 
 	return &out, nil
 }
 
+// ListUsersRaw returns the raw response body from GET /api/v1/users.
+func (c *Client) ListUsersRaw(ctx context.Context, opts ListDirectoryUsersOptions) ([]byte, error) {
+	path := apiPathPrefix + "/users"
+	if q := opts.QueryValues().Encode(); q != "" {
+		path += "?" + q
+	}
+	return c.GetRaw(ctx, path)
+}
+
+// GetUserRaw returns the raw response body from GET /api/v1/users/{user_id}.
+func (c *Client) GetUserRaw(ctx context.Context, userID string) ([]byte, error) {
+	return c.GetRaw(ctx, apiPathPrefix+"/users/"+url.PathEscape(userID))
+}
+
 // GetUser calls GET /api/v1/users/{user_id}.
 func (c *Client) GetUser(ctx context.Context, userID string) (*DirectoryUser, error) {
 	path := apiPathPrefix + "/users/" + url.PathEscape(userID)

@@ -45,7 +45,8 @@ func init() {
 	rootCmd.PersistentFlags().String("base-url", "", "Kandji API base URL (e.g. https://your-tenant.clients.us-1.kandji.io)")
 	rootCmd.PersistentFlags().String("subdomain", "", "Kandji tenant subdomain (used to build base URL if --base-url is not set)")
 	rootCmd.PersistentFlags().String("token", "", "Kandji API bearer token")
-	rootCmd.PersistentFlags().StringP("output", "o", "table", "Output format: table or json")
+	rootCmd.PersistentFlags().StringP("output", "o", "table", "Output format: table, json, or raw (exact API response bytes)")
+	rootCmd.PersistentFlags().Bool("raw", false, "Emit raw API response body (same as -o raw)")
 	rootCmd.PersistentFlags().Bool("verbose", false, "Verbose output")
 
 	_ = viper.BindPFlag("config", rootCmd.PersistentFlags().Lookup("config"))
@@ -53,6 +54,7 @@ func init() {
 	_ = viper.BindPFlag("subdomain", rootCmd.PersistentFlags().Lookup("subdomain"))
 	_ = viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token"))
 	_ = viper.BindPFlag("output", rootCmd.PersistentFlags().Lookup("output"))
+	_ = viper.BindPFlag("raw", rootCmd.PersistentFlags().Lookup("raw"))
 	_ = viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 }
 

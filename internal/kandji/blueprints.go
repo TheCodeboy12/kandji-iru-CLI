@@ -121,6 +121,20 @@ func (c *Client) GetBlueprint(ctx context.Context, blueprintID string) (*Bluepri
 	return &out, nil
 }
 
+// ListBlueprintsRaw returns the raw response body from GET /api/v1/blueprints.
+func (c *Client) ListBlueprintsRaw(ctx context.Context, opts ListBlueprintsOptions) ([]byte, error) {
+	path := apiPathPrefix + "/blueprints"
+	if q := opts.QueryValues().Encode(); q != "" {
+		path += "?" + q
+	}
+	return c.GetRaw(ctx, path)
+}
+
+// GetBlueprintRaw returns the raw response body from GET /api/v1/blueprints/{id}.
+func (c *Client) GetBlueprintRaw(ctx context.Context, blueprintID string) ([]byte, error) {
+	return c.GetRaw(ctx, apiPathPrefix+"/blueprints/"+url.PathEscape(blueprintID))
+}
+
 // ListBlueprintLibraryItems calls GET /api/v1/blueprints/{blueprint_id}/list-library-items.
 // Returns raw JSON (array or object per API).
 func (c *Client) ListBlueprintLibraryItems(ctx context.Context, blueprintID string) ([]byte, error) {

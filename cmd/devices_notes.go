@@ -68,6 +68,14 @@ func init() {
 
 func runDevicesNotesList(cmd *cobra.Command, args []string) error {
 	client := kandji.New(viper.GetString("resolved_base_url"), viper.GetString("token"))
+	if outputFormat() == "raw" {
+		body, err := client.ListDeviceNotesRaw(cmd.Context(), args[0])
+		if err != nil {
+			return fmt.Errorf("list device notes: %w", err)
+		}
+		_, _ = os.Stdout.Write(body)
+		return nil
+	}
 	notes, err := client.ListDeviceNotes(cmd.Context(), args[0])
 	if err != nil {
 		return fmt.Errorf("list device notes: %w", err)
@@ -87,6 +95,14 @@ func runDevicesNotesList(cmd *cobra.Command, args []string) error {
 
 func runDevicesNoteGet(cmd *cobra.Command, args []string) error {
 	client := kandji.New(viper.GetString("resolved_base_url"), viper.GetString("token"))
+	if outputFormat() == "raw" {
+		body, err := client.GetDeviceNoteRaw(cmd.Context(), args[0], args[1])
+		if err != nil {
+			return err
+		}
+		_, _ = os.Stdout.Write(body)
+		return nil
+	}
 	note, err := client.GetDeviceNote(cmd.Context(), args[0], args[1])
 	if err != nil {
 		return err

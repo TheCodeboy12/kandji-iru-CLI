@@ -44,6 +44,18 @@ func (c *Client) ListDeviceNotes(ctx context.Context, deviceID string) ([]Device
 	return notes, nil
 }
 
+// ListDeviceNotesRaw returns the raw response body from GET /api/v1/devices/{id}/notes.
+func (c *Client) ListDeviceNotesRaw(ctx context.Context, deviceID string) ([]byte, error) {
+	path := apiPathPrefix + "/devices/" + url.PathEscape(deviceID) + "/notes"
+	return c.GetRaw(ctx, path)
+}
+
+// GetDeviceNoteRaw returns the raw response body from GET /api/v1/devices/{id}/notes/{note_id}.
+func (c *Client) GetDeviceNoteRaw(ctx context.Context, deviceID, noteID string) ([]byte, error) {
+	path := apiPathPrefix + "/devices/" + url.PathEscape(deviceID) + "/notes/" + url.PathEscape(noteID)
+	return c.GetRaw(ctx, path)
+}
+
 // GetDeviceNote calls GET /api/v1/devices/{device_id}/notes/{note_id}.
 func (c *Client) GetDeviceNote(ctx context.Context, deviceID, noteID string) (*DeviceNote, error) {
 	path := apiPathPrefix + "/devices/" + url.PathEscape(deviceID) + "/notes/" + url.PathEscape(noteID)

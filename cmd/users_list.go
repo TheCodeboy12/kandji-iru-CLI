@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -44,6 +45,16 @@ func runUsersList(cmd *cobra.Command, args []string) error {
 		Cursor:        viper.GetString("users_list_cursor"),
 	}
 
+	switch outputFormat() {
+	case "raw":
+		body, err := client.ListUsersRaw(cmd.Context(), opts)
+		if err != nil {
+			return fmt.Errorf("list users: %w", err)
+		}
+		_, _ = os.Stdout.Write(body)
+		return nil
+	}
+
 	resp, err := client.ListUsers(cmd.Context(), opts)
 	if err != nil {
 		return fmt.Errorf("list users: %w", err)
@@ -54,6 +65,7 @@ func runUsersList(cmd *cobra.Command, args []string) error {
 		return writeJSON(resp)
 	default:
 		writeUsersTable(resp.Results)
+		printPaginationHint("users", resp.Next, resp.Previous, len(resp.Results), 0, 0)
 		return nil
 	}
 }

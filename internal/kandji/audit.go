@@ -88,3 +88,12 @@ func (c *Client) ListAuditEvents(ctx context.Context, opts ListAuditEventsOption
 	}
 	return &out, nil
 }
+
+// ListAuditEventsRaw returns the raw response body from GET /api/v1/audit/events.
+func (c *Client) ListAuditEventsRaw(ctx context.Context, opts ListAuditEventsOptions) ([]byte, error) {
+	path := apiPathPrefix + "/audit/events"
+	if q := opts.QueryValues().Encode(); q != "" {
+		path += "?" + q
+	}
+	return c.GetRaw(ctx, path)
+}

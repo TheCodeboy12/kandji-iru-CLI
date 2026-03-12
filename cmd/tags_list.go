@@ -25,6 +25,14 @@ func init() {
 func runTagsList(cmd *cobra.Command, args []string) error {
 	client := kandji.New(viper.GetString("resolved_base_url"), viper.GetString("token"))
 	opts := kandji.ListTagsOptions{Search: viper.GetString("tags_list_search")}
+	if outputFormat() == "raw" {
+		body, err := client.ListTagsRaw(cmd.Context(), opts)
+		if err != nil {
+			return fmt.Errorf("list tags: %w", err)
+		}
+		_, _ = os.Stdout.Write(body)
+		return nil
+	}
 	tags, err := client.ListTags(cmd.Context(), opts)
 	if err != nil {
 		return fmt.Errorf("list tags: %w", err)

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -26,6 +27,15 @@ func runDevicesGet(cmd *cobra.Command, args []string) error {
 	baseURL := viper.GetString("resolved_base_url")
 	token := viper.GetString("token")
 	client := kandji.New(baseURL, token)
+
+	if outputFormat() == "raw" {
+		body, err := client.GetDeviceRaw(cmd.Context(), deviceID)
+		if err != nil {
+			return fmt.Errorf("get device: %w", err)
+		}
+		_, _ = os.Stdout.Write(body)
+		return nil
+	}
 
 	device, err := client.GetDevice(cmd.Context(), deviceID)
 	if err != nil {

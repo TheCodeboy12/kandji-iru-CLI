@@ -34,7 +34,7 @@ func runDevicesDetails(cmd *cobra.Command, args []string) error {
 	}
 
 	switch outputFormat() {
-	case "json":
+	case "json", "raw":
 		_, err = os.Stdout.Write(body)
 		if err != nil {
 			return err

@@ -22,6 +22,14 @@ func init() {
 
 func runTagsGet(cmd *cobra.Command, args []string) error {
 	client := kandji.New(viper.GetString("resolved_base_url"), viper.GetString("token"))
+	if outputFormat() == "raw" {
+		body, err := client.GetTagRaw(cmd.Context(), args[0])
+		if err != nil {
+			return err
+		}
+		_, _ = os.Stdout.Write(body)
+		return nil
+	}
 	tag, err := client.GetTag(cmd.Context(), args[0])
 	if err != nil {
 		return err

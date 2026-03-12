@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -51,6 +52,16 @@ func runAuditEvents(cmd *cobra.Command, args []string) error {
 		opts.SortBy = "-occurred_at"
 	}
 
+	switch outputFormat() {
+	case "raw":
+		body, err := client.ListAuditEventsRaw(cmd.Context(), opts)
+		if err != nil {
+			return fmt.Errorf("audit events: %w", err)
+		}
+		_, _ = os.Stdout.Write(body)
+		return nil
+	}
+
 	resp, err := client.ListAuditEvents(cmd.Context(), opts)
 	if err != nil {
 		return fmt.Errorf("audit events: %w", err)
@@ -61,6 +72,7 @@ func runAuditEvents(cmd *cobra.Command, args []string) error {
 		return writeJSON(resp)
 	default:
 		writeAuditEventsTable(resp.Results)
+		printPaginationHint("audit", resp.Next, resp.Previous, len(resp.Results), opts.Limit, 0)
 		return nil
 	}
 }

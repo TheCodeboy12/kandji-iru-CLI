@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -60,6 +61,16 @@ func runDevicesList(cmd *cobra.Command, args []string) error {
 		BlueprintID:  viper.GetString("devices_list_blueprint_id"),
 	}
 
+	switch outputFormat() {
+	case "raw":
+		body, err := client.ListDevicesRaw(cmd.Context(), opts)
+		if err != nil {
+			return fmt.Errorf("list devices: %w", err)
+		}
+		_, _ = os.Stdout.Write(body)
+		return nil
+	}
+
 	devices, err := client.ListDevices(cmd.Context(), opts)
 	if err != nil {
 		return fmt.Errorf("list devices: %w", err)
@@ -70,6 +81,7 @@ func runDevicesList(cmd *cobra.Command, args []string) error {
 		return writeDevicesJSON(devices)
 	default:
 		writeDevicesTable(devices)
+		printPaginationHint("devices", nil, nil, len(devices), opts.Limit, opts.Offset)
 		return nil
 	}
 }

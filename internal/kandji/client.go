@@ -144,3 +144,38 @@ func (c *Client) newRequest(ctx context.Context, method, path string, body io.Re
 	}
 	return req, nil
 }
+
+// GetRaw performs GET and returns the response body unchanged (for -o raw).
+func (c *Client) GetRaw(ctx context.Context, path string) ([]byte, error) {
+	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%s: %s", resp.Status, string(body))
+	}
+	return body, nil
+}
+
+// ListDevicesRaw returns the raw response body from GET /api/v1/devices.
+func (c *Client) ListDevicesRaw(ctx context.Context, opts ListDeviceOptions) ([]byte, error) {
+	path := apiPathPrefix + "/devices"
+	if q := opts.QueryValues().Encode(); q != "" {
+		path += "?" + q
+	}
+	return c.GetRaw(ctx, path)
+}
+
+// GetDeviceRaw returns the raw response body from GET /api/v1/devices/{id}.
+func (c *Client) GetDeviceRaw(ctx context.Context, deviceID string) ([]byte, error) {
+	return c.GetRaw(ctx, apiPathPrefix+"/devices/"+url.PathEscape(deviceID))
+}

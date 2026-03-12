@@ -59,6 +59,20 @@ func (c *Client) ListTags(ctx context.Context, opts ListTagsOptions) ([]Tag, err
 	return tags, nil
 }
 
+// ListTagsRaw returns the raw response body from GET /api/v1/tags.
+func (c *Client) ListTagsRaw(ctx context.Context, opts ListTagsOptions) ([]byte, error) {
+	path := apiPathPrefix + "/tags"
+	if q := opts.QueryValues().Encode(); q != "" {
+		path += "?" + q
+	}
+	return c.GetRaw(ctx, path)
+}
+
+// GetTagRaw returns the raw response body from GET /api/v1/tags/{tag_id}.
+func (c *Client) GetTagRaw(ctx context.Context, tagID string) ([]byte, error) {
+	return c.GetRaw(ctx, apiPathPrefix+"/tags/"+url.PathEscape(tagID))
+}
+
 // GetTag calls GET /api/v1/tags/{tag_id}.
 func (c *Client) GetTag(ctx context.Context, tagID string) (*Tag, error) {
 	path := apiPathPrefix + "/tags/" + url.PathEscape(tagID)

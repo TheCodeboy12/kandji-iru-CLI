@@ -11,6 +11,9 @@ import (
 )
 
 func outputFormat() string {
+	if viper.GetBool("raw") {
+		return "raw"
+	}
 	return viper.GetString("output")
 }
 

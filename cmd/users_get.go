@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -25,6 +26,15 @@ func runUsersGet(cmd *cobra.Command, args []string) error {
 	baseURL := viper.GetString("resolved_base_url")
 	token := viper.GetString("token")
 	client := kandji.New(baseURL, token)
+
+	if outputFormat() == "raw" {
+		body, err := client.GetUserRaw(cmd.Context(), userID)
+		if err != nil {
+			return fmt.Errorf("get user: %w", err)
+		}
+		_, _ = os.Stdout.Write(body)
+		return nil
+	}
 
 	u, err := client.GetUser(cmd.Context(), userID)
 	if err != nil {

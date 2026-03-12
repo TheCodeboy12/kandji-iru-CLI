@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -44,6 +45,16 @@ func runBlueprintsList(cmd *cobra.Command, args []string) error {
 		Offset: viper.GetInt("blueprints_list_offset"),
 	}
 
+	switch outputFormat() {
+	case "raw":
+		body, err := client.ListBlueprintsRaw(cmd.Context(), opts)
+		if err != nil {
+			return fmt.Errorf("list blueprints: %w", err)
+		}
+		_, _ = os.Stdout.Write(body)
+		return nil
+	}
+
 	resp, err := client.ListBlueprints(cmd.Context(), opts)
 	if err != nil {
 		return fmt.Errorf("list blueprints: %w", err)
@@ -54,6 +65,7 @@ func runBlueprintsList(cmd *cobra.Command, args []string) error {
 		return writeJSON(resp)
 	default:
 		writeBlueprintsTable(resp.Results)
+		printPaginationHint("blueprints", resp.Next, resp.Previous, len(resp.Results), opts.Limit, opts.Offset)
 		return nil
 	}
 }
