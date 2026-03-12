@@ -76,6 +76,9 @@ func initConfig() {
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_", ".", "_"))
 
+	// So config file keys "base-url" and "token" are found when we GetString("base_url") / GetString("token").
+	viper.RegisterAlias("base_url", "base-url")
+
 	if err := viper.ReadInConfig(); err != nil {
 		// Config file or directory not created yet (e.g. before running "init") — not fatal.
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
@@ -94,13 +97,28 @@ func initConfig() {
 }
 
 func validateConfig() error {
-	// Skip validation for init so the config file can be created without credentials.
-	if len(os.Args) >= 2 && os.Args[1] == "init" {
-		return nil
+	// Skip validation for init and completion so they work without credentials.
+	if len(os.Args) >= 2 {
+		switch os.Args[1] {
+		case "init", "completion":
+			return nil
+		}
 	}
 	token := viper.GetString("token")
 	if token == "" {
-		return fmt.Errorf("API token not configured\nSet KANDJI_TOKEN or use --token or add to config file (~/.config/kandji-iru-cli/config.yaml)")
+		configPath := viper.ConfigFileUsed()
+		if configPath == "" {
+			home, _ := os.UserHomeDir()
+			if home != "" {
+				configPath = filepath.Join(home, ".config", "kandji-iru-cli", "config.yaml")
+			} else {
+				configPath = "~/.config/kandji-iru-cli/config.yaml"
+			}
+		}
+		return fmt.Errorf("API token not configured\n"+
+			"Set KANDJI_TOKEN, use --token, or add token to your config file.\n"+
+			"Config file used: %s\n"+
+			"Run 'kandji-iru-cli init' to create it, then edit and set 'token: YOUR_TOKEN'", configPath)
 	}
 
 	baseURL := viper.GetString("base_url")
