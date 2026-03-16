@@ -13,12 +13,12 @@ import (
 	"kandji-iru-cli/internal/keyring"
 )
 
-const configTemplate = `# Kandji API configuration
+// configTemplatePlain is used when init --no-keyring: token and base-url in file (less secure).
+const configTemplatePlain = `# Kandji API configuration
 # Edit this file and add your token and base URL (or subdomain).
 # Get your API token: Kandji tenant > Settings > Access
 #
-# For best security, store the token in the system keyring instead:
-#   kandji-iru-cli init --keyring   (interactive) or kandji-iru-cli token store
+# For better security, use keyring instead: kandji-iru-cli init (default)
 #
 # US tenants:
 #   Set base-url: https://YOUR_TENANT.api.kandji.io
@@ -32,7 +32,7 @@ base-url: ""
 # subdomain: ""
 `
 
-// configTemplateKeyring is used when init --keyring: no token in file (stored in keyring).
+// configTemplateKeyring is the default: no token in file (stored in keyring).
 const configTemplateKeyring = `# Kandji API configuration (token stored in system keyring)
 # Edit base-url or subdomain below. Token is read from the keyring.
 #
@@ -49,25 +49,22 @@ base-url: ""
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Create the config file (optionally store token in keyring)",
-	Long: `Create the config file and optionally store your API token in the system keyring.
+	Short: "Create config and store credentials (default: keyring)",
+	Long: `Initialize the CLI. By default uses the system keyring (most secure): token is stored
+in the keyring, and you can set base URL or subdomain in the config file when prompted.
 
-Without --keyring: creates a config file with empty token and base-url; edit the file to add them.
-
-With --keyring: creates the config file (no token in file) and stores the API token in the
-system keyring (macOS Keychain, Linux Secret Service, Windows Credential Manager). Token can
-be provided via --token, KANDJI_TOKEN, or stdin (e.g. echo "YOUR_TOKEN" | kandji-iru-cli init --keyring).
-Then edit the config file to add base-url or subdomain only.`,
+Use --no-keyring only if you need to store the API token in the config file (less secure);
+then edit the file to add token and base-url (or subdomain).`,
 	RunE: runInit,
 }
 
 var initForce bool
-var initKeyring bool
+var initNoKeyring bool
 
 func init() {
 	rootCmd.AddCommand(initCmd)
 	initCmd.Flags().BoolVar(&initForce, "force", false, "Overwrite config file if it already exists")
-	initCmd.Flags().BoolVar(&initKeyring, "keyring", false, "Store API token in system keyring (no token in config file)")
+	initCmd.Flags().BoolVar(&initNoKeyring, "no-keyring", false, "Store token in config file instead of keyring (less secure)")
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
@@ -88,17 +85,18 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	if exists && !initForce {
 		fmt.Fprintf(os.Stderr, "Config file already exists: %s\n", path)
-		if initKeyring {
-			fmt.Fprintln(os.Stderr, "Use --force to overwrite. To only store a token in keyring, use: kandji-iru-cli token store")
-		} else {
+		if initNoKeyring {
 			fmt.Fprintln(os.Stderr, "Edit it to update your token and base-url (or subdomain). Use --force to overwrite with the default template.")
+		} else {
+			fmt.Fprintln(os.Stderr, "Use --force to overwrite. To only store a token in keyring, use: kandji-iru-cli token store")
 		}
 		return nil
 	}
 
-	template := configTemplate
-	if initKeyring {
-		template = configTemplateKeyring
+	useKeyring := !initNoKeyring
+	template := configTemplateKeyring
+	if initNoKeyring {
+		template = configTemplatePlain
 	}
 	if err := os.WriteFile(path, []byte(template), 0600); err != nil {
 		return fmt.Errorf("write config file: %w", err)
@@ -110,7 +108,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stderr, "Created config file: %s\n", path)
 	}
 
-	if initKeyring {
+	if useKeyring {
 		token := viper.GetString("token")
 		if token == "" {
 			fmt.Fprint(os.Stderr, "API token (will be stored in system keyring, or pipe from stdin): ")
@@ -129,27 +127,27 @@ func runInit(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("storing token in keyring: %w", err)
 		}
 		fmt.Fprintln(os.Stderr, "Token stored in system keyring.")
-		// Optionally store base URL or subdomain so CLI works without config file
-		fmt.Fprint(os.Stderr, "Base URL or subdomain (optional, stored in keyring; e.g. https://tenant.api.kandji.io or tenant): ")
+		// Optional: set base URL or subdomain in the config file (and optionally in keyring for keyring-only use)
+		fmt.Fprint(os.Stderr, "Base URL or subdomain for config file (optional; e.g. https://tenant.api.kandji.io or tenant): ")
 		scanner := bufio.NewScanner(os.Stdin)
 		if scanner.Scan() {
 			val := strings.TrimSpace(scanner.Text())
 			if val != "" {
-				if strings.HasPrefix(val, "http://") || strings.HasPrefix(val, "https://") {
-					_ = keyring.SetBaseURL(val)
-					fmt.Fprintln(os.Stderr, "Base URL stored in system keyring.")
+				if err := writeKeyringConfigWithURL(path, val); err != nil {
+					fmt.Fprintf(os.Stderr, "Warning: could not update config file with URL: %v\n", err)
+				} else if strings.HasPrefix(val, "http://") || strings.HasPrefix(val, "https://") {
+					fmt.Fprintln(os.Stderr, "Base URL written to config file.")
 				} else {
-					_ = keyring.SetSubdomain(val)
-					fmt.Fprintln(os.Stderr, "Subdomain stored in system keyring.")
+					fmt.Fprintln(os.Stderr, "Subdomain written to config file.")
 				}
 			}
 		}
 		_ = scanner.Err()
-		fmt.Fprintln(os.Stderr, "You can run CLI commands without a config file; or edit the config file for base-url/subdomain only.")
+		fmt.Fprintln(os.Stderr, "Done. Token is in keyring; base URL is in the config file (edit it anytime).")
 		return nil
 	}
 
-	fmt.Fprintln(os.Stderr, "Edit it and add your token and base-url (or subdomain), then run any CLI command.")
+	fmt.Fprintln(os.Stderr, "Edit the config file and add your token and base-url (or subdomain), then run any CLI command.")
 	return nil
 }
 
@@ -163,4 +161,32 @@ func configPath() string {
 		return ""
 	}
 	return filepath.Join(home, ".config", "kandji-iru-cli", "config.yaml")
+}
+
+// writeKeyringConfigWithURL rewrites the config file at path with base-url or subdomain set.
+// val is either a full URL (https://...) or a subdomain name.
+func writeKeyringConfigWithURL(path, val string) error {
+	const header = `# Kandji API configuration (token stored in system keyring)
+# Edit base-url or subdomain below. Token is read from the keyring.
+#
+# US tenants:
+#   Set base-url: https://YOUR_TENANT.api.kandji.io
+#   Or set subdomain: YOUR_TENANT (URL will be built for you)
+#
+# EU tenants:
+#   Set base-url: https://YOUR_TENANT.api.eu.kandji.io
+
+`
+	// Escape for YAML double-quoted string (backslash and quote)
+	escape := func(s string) string {
+		s = strings.ReplaceAll(s, "\\", "\\\\")
+		return strings.ReplaceAll(s, "\"", "\\\"")
+	}
+	var body string
+	if strings.HasPrefix(val, "http://") || strings.HasPrefix(val, "https://") {
+		body = header + "base-url: \"" + escape(val) + "\"\n# subdomain: \"\"\n"
+	} else {
+		body = header + "base-url: \"\"\nsubdomain: \"" + escape(val) + "\"\n"
+	}
+	return os.WriteFile(path, []byte(body), 0600)
 }

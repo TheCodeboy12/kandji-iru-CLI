@@ -120,7 +120,7 @@ func validateConfig(cmd *cobra.Command) error {
 		}
 		return fmt.Errorf("API token not configured\n"+
 			"For best security, store your token in the system keyring:\n"+
-			"  kandji-iru-cli init --keyring   (interactive setup)\n"+
+			"  kandji-iru-cli init   (interactive setup, uses keyring by default)\n"+
 			"  kandji-iru-cli token store     (store from --token, KANDJI_TOKEN, or stdin)\n"+
 			"Otherwise add token to your config file or set KANDJI_TOKEN.\n"+
 			"Config file: %s", configPath)
@@ -181,7 +181,7 @@ func resolveBaseURL(cmd *cobra.Command) (string, error) {
 		return fmt.Sprintf(defaultBaseURLTemplate, subdomain), nil
 	}
 	return "", fmt.Errorf("API base URL not configured\n"+
-		"Set KANDJI_BASE_URL or KANDJI_SUBDOMAIN, use --base-url or --subdomain, or store them in the keyring (kandji-iru-cli init --keyring)")
+		"Set KANDJI_BASE_URL or KANDJI_SUBDOMAIN, use --base-url or --subdomain, or store them in the keyring (kandji-iru-cli init)")
 }
 
 // resolveSubdomain returns subdomain in order: flag > keyring > config file > env.

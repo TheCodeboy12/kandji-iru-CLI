@@ -30,20 +30,20 @@ If no token is found, the CLI suggests using the keyring first, then config or e
 
 ### Create the config file
 
-**Option A — Init with keyring (recommended):** store the token in the system keyring and keep the config file without secrets:
-
-```bash
-kandji-iru-cli init --keyring
-# Creates config file (no token in file), prompts for API token and stores it in the keyring
-# Then edit the config file to add base-url (or subdomain) only
-```
-
-You can also pipe the token or use env: `echo "YOUR_TOKEN" | kandji-iru-cli init --keyring` or `KANDJI_TOKEN=xxx kandji-iru-cli init --keyring`.
-
-**Option B — Init with config file only:** create the config file and add the token in plain text:
+./**Default — Init with keyring (most secure):** `init` uses the system keyring by default. Token is stored in the keyring; you can set base URL or subdomain in the config file when prompted.
 
 ```bash
 kandji-iru-cli init
+# Creates config file (no token in file), prompts for API token and stores it in the keyring
+# Optionally prompts for base URL or subdomain and writes it to the config file
+```
+
+You can pipe the token or use env: `echo "YOUR_TOKEN" | kandji-iru-cli init` or `KANDJI_TOKEN=xxx kandji-iru-cli init`.
+
+**Option — Init with token in config file (less secure):** use `--no-keyring` only if you need the token in the config file:
+
+```bash
+kandji-iru-cli init --no-keyring
 # Creates ~/.config/kandji-iru-cli/config.yaml; edit it and add your token and base-url (or subdomain)
 ```
 
@@ -64,8 +64,8 @@ For EU tenants, set `base-url` explicitly (e.g. `https://your-tenant.api.eu.kand
 Storing the token in the keyring is the most secure option (no plain-text token in config or env). The CLI checks the keyring **before** the config file and environment.
 
 ```bash
-# Interactive setup (creates config + keyring entry)
-kandji-iru-cli init --keyring
+# Interactive setup (default: creates config + keyring entry)
+kandji-iru-cli init
 
 # Store token from flag, env, or stdin into keyring
 kandji-iru-cli token store
