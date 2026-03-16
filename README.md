@@ -17,34 +17,65 @@ go install .
 
 ## Configuration
 
-The CLI reads configuration from (in order of precedence):
+The CLI resolves the **API token** in this order (first found wins):
 
-1. **Flags** — `--token`, `--base-url` or `--subdomain`
-2. **Environment** — `KANDJI_TOKEN`, `KANDJI_BASE_URL` or `KANDJI_SUBDOMAIN`
-3. **Config file** — `~/.config/kandji-iru-cli/config.yaml` (or `--config path/to/file`)
+1. **`--token` flag** — explicit override when you pass it
+2. **System keyring** — macOS Keychain, Linux Secret Service, or Windows Credential Manager (recommended; token not on disk or in env)
+3. **Config file** — `token:` in `~/.config/kandji-iru-cli/config.yaml`
+4. **Environment** — `KANDJI_TOKEN`
+
+Base URL is still from flags, env (`KANDJI_BASE_URL` / `KANDJI_SUBDOMAIN`), or config file.
+
+If no token is found, the CLI suggests using the keyring first, then config or env.
 
 ### Create the config file
 
-Run once to create the config file, then edit it with your token and base URL:
+**Option A — Init with keyring (recommended):** store the token in the system keyring and keep the config file without secrets:
+
+```bash
+kandji-iru-cli init --keyring
+# Creates config file (no token in file), prompts for API token and stores it in the keyring
+# Then edit the config file to add base-url (or subdomain) only
+```
+
+You can also pipe the token or use env: `echo "YOUR_TOKEN" | kandji-iru-cli init --keyring` or `KANDJI_TOKEN=xxx kandji-iru-cli init --keyring`.
+
+**Option B — Init with config file only:** create the config file and add the token in plain text:
 
 ```bash
 kandji-iru-cli init
 # Creates ~/.config/kandji-iru-cli/config.yaml; edit it and add your token and base-url (or subdomain)
 ```
 
-Use `--config path/to/file` to create a config at a different path, or `--force` to overwrite an existing file.
+Use `--config path/to/file` to use a different config path, or `--force` to overwrite an existing file.
 
 ### Config file example (`~/.config/kandji-iru-cli/config.yaml`)
 
 ```yaml
-token: your-api-token
-# One of:
+token: your-api-token   # omit if using keyring
 base-url: https://your-tenant.api.kandji.io
-# or (US):
-subdomain: your-tenant
+# or (US): subdomain: your-tenant
 ```
 
 For EU tenants, set `base-url` explicitly (e.g. `https://your-tenant.api.eu.kandji.io`).
+
+### System keyring
+
+Storing the token in the keyring is the most secure option (no plain-text token in config or env). The CLI checks the keyring **before** the config file and environment.
+
+```bash
+# Interactive setup (creates config + keyring entry)
+kandji-iru-cli init --keyring
+
+# Store token from flag, env, or stdin into keyring
+kandji-iru-cli token store
+echo "YOUR_API_TOKEN" | kandji-iru-cli token store
+
+# Remove token from keyring
+kandji-iru-cli token delete
+```
+
+Uses [go-keyring](https://github.com/zalando/go-keyring) (macOS Keychain, Linux Secret Service, Windows Credential Manager).
 
 ## Arbitrary query params (`--params`)
 
@@ -111,6 +142,7 @@ kandji-iru-cli --raw audit events list
 | **Secrets** | `devices secrets <id> <type>` — types: `bypasscode`, `filevaultkey`, `unlockpin`, `recoverypassword` |
 | **Tags** | `tags list`, `tags get <id>`, `tags create --name ...`, `tags update <id> --name ...`, `tags delete <id>` |
 | **Settings** | `settings licensing` |
+| **Token (keyring)** | `token store` — store API token in system keyring; `token delete` — remove from keyring |
 | **Users** | `users list`, `users get <id>`, `users delete <id>` |
 | **Shell completion** | `completion [bash\|zsh\|fish\|powershell]` |
 

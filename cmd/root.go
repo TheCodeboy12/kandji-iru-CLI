@@ -12,6 +12,9 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
+
+	"kandji-iru-cli/internal/keyring"
 )
 
 const (
@@ -27,7 +30,7 @@ var rootCmd = &cobra.Command{
 	Long: `A CLI to manage Kandji devices and other resources via the Kandji API.
 Requires KANDJI_TOKEN and KANDJI_BASE_URL (or KANDJI_SUBDOMAIN).`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return validateConfig()
+		return validateConfig(cmd)
 	},
 }
 
@@ -96,15 +99,15 @@ func initConfig() {
 	}
 }
 
-func validateConfig() error {
-	// Skip validation for init and completion so they work without credentials.
+func validateConfig(cmd *cobra.Command) error {
+	// Skip validation for init, completion, and token so they work without credentials.
 	if len(os.Args) >= 2 {
 		switch os.Args[1] {
-		case "init", "completion":
+		case "init", "completion", "token":
 			return nil
 		}
 	}
-	token := viper.GetString("token")
+	token := resolveToken(cmd)
 	if token == "" {
 		configPath := viper.ConfigFileUsed()
 		if configPath == "" {
@@ -116,20 +119,142 @@ func validateConfig() error {
 			}
 		}
 		return fmt.Errorf("API token not configured\n"+
-			"Set KANDJI_TOKEN, use --token, or add token to your config file.\n"+
-			"Config file used: %s\n"+
-			"Run 'kandji-iru-cli init' to create it, then edit and set 'token: YOUR_TOKEN'", configPath)
+			"For best security, store your token in the system keyring:\n"+
+			"  kandji-iru-cli init --keyring   (interactive setup)\n"+
+			"  kandji-iru-cli token store     (store from --token, KANDJI_TOKEN, or stdin)\n"+
+			"Otherwise add token to your config file or set KANDJI_TOKEN.\n"+
+			"Config file: %s", configPath)
 	}
+	viper.Set("token", token)
 
-	baseURL := viper.GetString("base_url")
-	if baseURL == "" {
-		subdomain := viper.GetString("subdomain")
-		if subdomain == "" {
-			return fmt.Errorf("API base URL not configured\nSet KANDJI_BASE_URL or KANDJI_SUBDOMAIN, or use --base-url or --subdomain")
-		}
-		// Subdomain is the tenant name, e.g. "acme" -> https://acme.clients.us-1.kandji.io
-		baseURL = fmt.Sprintf(defaultBaseURLTemplate, strings.TrimSpace(subdomain))
+	baseURL, err := resolveBaseURL(cmd)
+	if err != nil {
+		return err
 	}
 	viper.Set("resolved_base_url", strings.TrimSuffix(baseURL, "/"))
 	return nil
+}
+
+// resolveToken returns the API token in order: --token flag (if set) > keyring > config file > env.
+func resolveToken(cmd *cobra.Command) string {
+	// 1. Explicit --token flag
+	if f := cmd.Root().PersistentFlags().Lookup("token"); f != nil && f.Changed {
+		if t := viper.GetString("token"); t != "" {
+			return t
+		}
+	}
+	// 2. System keyring (preferred over config/env)
+	if kr, err := keyring.GetToken(); err == nil && kr != "" {
+		return kr
+	}
+	// 3. Config file (before env so file takes precedence)
+	if t := getTokenFromConfigFile(); t != "" {
+		return t
+	}
+	// 4. Environment
+	return os.Getenv("KANDJI_TOKEN")
+}
+
+// resolveBaseURL returns the API base URL in order: flag > keyring > config file > env; or builds from subdomain.
+func resolveBaseURL(cmd *cobra.Command) (string, error) {
+	// 1. Explicit --base-url flag
+	if f := cmd.Root().PersistentFlags().Lookup("base-url"); f != nil && f.Changed {
+		if u := strings.TrimSpace(viper.GetString("base_url")); u != "" {
+			return u, nil
+		}
+	}
+	// 2. Keyring
+	if u, err := keyring.GetBaseURL(); err == nil && strings.TrimSpace(u) != "" {
+		return strings.TrimSuffix(strings.TrimSpace(u), "/"), nil
+	}
+	// 3. Config file
+	if u := getBaseURLFromConfigFile(); u != "" {
+		return strings.TrimSuffix(strings.TrimSpace(u), "/"), nil
+	}
+	// 4. Environment
+	if u := os.Getenv("KANDJI_BASE_URL"); strings.TrimSpace(u) != "" {
+		return strings.TrimSuffix(strings.TrimSpace(u), "/"), nil
+	}
+	// No base URL — try subdomain to build URL
+	subdomain := resolveSubdomain(cmd)
+	if subdomain != "" {
+		return fmt.Sprintf(defaultBaseURLTemplate, subdomain), nil
+	}
+	return "", fmt.Errorf("API base URL not configured\n"+
+		"Set KANDJI_BASE_URL or KANDJI_SUBDOMAIN, use --base-url or --subdomain, or store them in the keyring (kandji-iru-cli init --keyring)")
+}
+
+// resolveSubdomain returns subdomain in order: flag > keyring > config file > env.
+func resolveSubdomain(cmd *cobra.Command) string {
+	if f := cmd.Root().PersistentFlags().Lookup("subdomain"); f != nil && f.Changed {
+		if s := strings.TrimSpace(viper.GetString("subdomain")); s != "" {
+			return s
+		}
+	}
+	if s, err := keyring.GetSubdomain(); err == nil && strings.TrimSpace(s) != "" {
+		return strings.TrimSpace(s)
+	}
+	if s := getSubdomainFromConfigFile(); s != "" {
+		return strings.TrimSpace(s)
+	}
+	return strings.TrimSpace(os.Getenv("KANDJI_SUBDOMAIN"))
+}
+
+// getTokenFromConfigFile returns the token key from the config file only (ignores env).
+func getTokenFromConfigFile() string {
+	path := viper.ConfigFileUsed()
+	if path == "" {
+		return ""
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	var cfg struct {
+		Token    string `yaml:"token"`
+		BaseURL  string `yaml:"base-url"`
+		Subdomain string `yaml:"subdomain"`
+	}
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(cfg.Token)
+}
+
+// getBaseURLFromConfigFile returns the base-url key from the config file only.
+func getBaseURLFromConfigFile() string {
+	path := viper.ConfigFileUsed()
+	if path == "" {
+		return ""
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	var cfg struct {
+		BaseURL string `yaml:"base-url"`
+	}
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(cfg.BaseURL)
+}
+
+// getSubdomainFromConfigFile returns the subdomain key from the config file only.
+func getSubdomainFromConfigFile() string {
+	path := viper.ConfigFileUsed()
+	if path == "" {
+		return ""
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	var cfg struct {
+		Subdomain string `yaml:"subdomain"`
+	}
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(cfg.Subdomain)
 }
