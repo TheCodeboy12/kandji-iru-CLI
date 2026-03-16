@@ -40,6 +40,13 @@ kandji-iru-cli init
 
 You can pipe the token or use env: `echo "YOUR_TOKEN" | kandji-iru-cli init` or `KANDJI_TOKEN=xxx kandji-iru-cli init`.
 
+**One-line init (non-interactive):** pass `--api-key` and `--base-url` (or `--subdomain`) to skip prompts:
+
+```bash
+kandji-iru-cli init --api-key="YOUR_TOKEN" --base-url="https://your-tenant.api.kandji.io"
+kandji-iru-cli init --api-key="YOUR_TOKEN" --subdomain="your-tenant"
+```
+
 **Option — Init with token in config file (less secure):** use `--no-keyring` only if you need the token in the config file:
 
 ```bash

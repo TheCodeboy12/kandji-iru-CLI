@@ -54,17 +54,47 @@ var initCmd = &cobra.Command{
 in the keyring, and you can set base URL or subdomain in the config file when prompted.
 
 Use --no-keyring only if you need to store the API token in the config file (less secure);
-then edit the file to add token and base-url (or subdomain).`,
+then edit the file to add token and base-url (or subdomain).
+
+One-line init (non-interactive): pass --api-key and --base-url (or --subdomain) to configure
+without prompts, e.g. kandji-iru-cli init --api-key=YOUR_TOKEN --base-url=https://tenant.api.kandji.io`,
 	RunE: runInit,
 }
 
 var initForce bool
 var initNoKeyring bool
+var initApiKey string
 
 func init() {
 	rootCmd.AddCommand(initCmd)
 	initCmd.Flags().BoolVar(&initForce, "force", false, "Overwrite config file if it already exists")
 	initCmd.Flags().BoolVar(&initNoKeyring, "no-keyring", false, "Store token in config file instead of keyring (less secure)")
+	initCmd.Flags().StringVar(&initApiKey, "api-key", "", "API token (with --base-url or --subdomain for one-line init)")
+}
+
+// initToken returns the token for init: init --api-key flag, or global --token / KANDJI_TOKEN.
+func initToken() string {
+	if s := strings.TrimSpace(initApiKey); s != "" {
+		return s
+	}
+	return strings.TrimSpace(viper.GetString("token"))
+}
+
+// initBaseURL returns the base URL for init from global --base-url or KANDJI_BASE_URL.
+// We read the flag directly so user-passed --base-url is not overwritten by config file.
+func initBaseURL() string {
+	if f := rootCmd.PersistentFlags().Lookup("base-url"); f != nil && f.Changed {
+		return strings.TrimSpace(f.Value.String())
+	}
+	return strings.TrimSpace(viper.GetString("base_url"))
+}
+
+// initSubdomain returns the subdomain for init from global --subdomain or KANDJI_SUBDOMAIN.
+func initSubdomain() string {
+	if f := rootCmd.PersistentFlags().Lookup("subdomain"); f != nil && f.Changed {
+		return strings.TrimSpace(f.Value.String())
+	}
+	return strings.TrimSpace(viper.GetString("subdomain"))
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
@@ -109,7 +139,27 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 
 	if useKeyring {
-		token := viper.GetString("token")
+		token := initToken()
+		baseURL := initBaseURL()
+		subdomain := initSubdomain()
+		hasURL := baseURL != "" || subdomain != ""
+
+		// One-line init: token + base URL (or subdomain) provided → no prompts
+		if token != "" && hasURL {
+			if err := keyring.SetToken(token); err != nil {
+				return fmt.Errorf("storing token in keyring: %w", err)
+			}
+			val := baseURL
+			if val == "" {
+				val = subdomain
+			}
+			if err := writeKeyringConfigWithURL(path, val); err != nil {
+				return fmt.Errorf("writing config file: %w", err)
+			}
+			fmt.Fprintln(os.Stderr, "Initialized. Token stored in keyring; base URL in config file.")
+			return nil
+		}
+
 		if token == "" {
 			fmt.Fprint(os.Stderr, "API token (will be stored in system keyring, or pipe from stdin): ")
 			scanner := bufio.NewScanner(os.Stdin)
@@ -127,22 +177,33 @@ func runInit(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("storing token in keyring: %w", err)
 		}
 		fmt.Fprintln(os.Stderr, "Token stored in system keyring.")
-		// Optional: set base URL or subdomain in the config file (and optionally in keyring for keyring-only use)
-		fmt.Fprint(os.Stderr, "Base URL or subdomain for config file (optional; e.g. https://tenant.api.kandji.io or tenant): ")
-		scanner := bufio.NewScanner(os.Stdin)
-		if scanner.Scan() {
-			val := strings.TrimSpace(scanner.Text())
-			if val != "" {
-				if err := writeKeyringConfigWithURL(path, val); err != nil {
-					fmt.Fprintf(os.Stderr, "Warning: could not update config file with URL: %v\n", err)
-				} else if strings.HasPrefix(val, "http://") || strings.HasPrefix(val, "https://") {
-					fmt.Fprintln(os.Stderr, "Base URL written to config file.")
-				} else {
-					fmt.Fprintln(os.Stderr, "Subdomain written to config file.")
+		if hasURL {
+			val := baseURL
+			if val == "" {
+				val = subdomain
+			}
+			if err := writeKeyringConfigWithURL(path, val); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not update config file with URL: %v\n", err)
+			} else {
+				fmt.Fprintln(os.Stderr, "Base URL written to config file.")
+			}
+		} else {
+			fmt.Fprint(os.Stderr, "Base URL or subdomain for config file (optional; e.g. https://tenant.api.kandji.io or tenant): ")
+			scanner := bufio.NewScanner(os.Stdin)
+			if scanner.Scan() {
+				val := strings.TrimSpace(scanner.Text())
+				if val != "" {
+					if err := writeKeyringConfigWithURL(path, val); err != nil {
+						fmt.Fprintf(os.Stderr, "Warning: could not update config file with URL: %v\n", err)
+					} else if strings.HasPrefix(val, "http://") || strings.HasPrefix(val, "https://") {
+						fmt.Fprintln(os.Stderr, "Base URL written to config file.")
+					} else {
+						fmt.Fprintln(os.Stderr, "Subdomain written to config file.")
+					}
 				}
 			}
+			_ = scanner.Err()
 		}
-		_ = scanner.Err()
 		fmt.Fprintln(os.Stderr, "Done. Token is in keyring; base URL is in the config file (edit it anytime).")
 		return nil
 	}
